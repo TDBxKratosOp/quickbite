@@ -41,4 +41,5 @@ A modern full-stack food delivery web app built with React, Firebase, and Razorp
 
 ## 📄 License
 
+# 🔒 Copyright
 This project is for personal/educational use.
