@@ -1,0 +1,67 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information and delivery preferences",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "pincode": { "type": "string" },
+        "deliveryAddress": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "email"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Details of a food order",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "restaurantName": { "type": "string" },
+        "items": { "type": "array" },
+        "total": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "preparing", "out-for-delivery", "delivered", "cancelled"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "deliveryAddress": { "type": "string" },
+        "pincode": { "type": "string" },
+        "paymentMethod": { "type": "string", "enum": ["COD", "RAZORPAY"] },
+        "hasBeenReviewed": { "type": "boolean" }
+      },
+      "required": ["userId", "restaurantName", "items", "total", "status", "createdAt"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Customer review for a restaurant",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "restaurantId": { "type": "string" },
+        "orderId": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "userName", "restaurantId", "orderId", "rating", "comment", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users": {
+      "schema": "User",
+      "description": "Collection of user profiles"
+    },
+    "orders": {
+      "schema": "Order",
+      "description": "Collection of user orders"
+    },
+    "reviews": {
+      "schema": "Review",
+      "description": "Collection of restaurant reviews"
+    }
+  }
+}
