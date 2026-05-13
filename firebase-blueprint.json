@@ -1,0 +1,132 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information and delivery preferences",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "pincode": { "type": "string" },
+        "deliveryAddress": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "email"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Details of a food order",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "restaurantName": { "type": "string" },
+        "items": { "type": "array" },
+        "total": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "preparing", "out-for-delivery", "delivered", "cancelled"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "deliveryAddress": { "type": "string" },
+        "pincode": { "type": "string" },
+        "paymentMethod": { "type": "string", "enum": ["COD", "RAZORPAY"] },
+        "hasBeenReviewed": { "type": "boolean" }
+      },
+      "required": ["userId", "restaurantName", "items", "total", "status", "createdAt"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Customer review for a restaurant",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "restaurantId": { "type": "string" },
+        "orderId": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "userName", "restaurantId", "orderId", "rating", "comment", "createdAt"]
+    },
+    "Restaurant": {
+      "title": "Restaurant",
+      "description": "Restaurant details and configuration",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string" },
+        "name": { "type": "string" },
+        "image": { "type": "string" },
+        "cuisines": { "type": "array", "items": { "type": "string" } },
+        "rating": { "type": "number" },
+        "deliveryTime": { "type": "number" },
+        "isActive": { "type": "boolean" },
+        "isPureVeg": { "type": "boolean" },
+        "address": { "type": "string" },
+        "phone": { "type": "string" },
+        "numReviews": { "type": "number" }
+      },
+      "required": ["ownerId", "name", "isActive"]
+    },
+    "MenuItem": {
+      "title": "MenuItem",
+      "description": "A food item in a restaurant menu",
+      "type": "object",
+      "properties": {
+        "restaurantId": { "type": "string" },
+        "restaurantName": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "image": { "type": "string" },
+        "isVeg": { "type": "boolean" },
+        "isAvailable": { "type": "boolean" }
+      },
+      "required": ["name", "price"]
+    },
+    "Appeal": {
+      "title": "Appeal",
+      "description": "Appeal or request from a user/owner to admin",
+      "type": "object",
+      "properties": {
+        "restaurantId": { "type": "string" },
+        "restaurantName": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "ownerEmail": { "type": "string" },
+        "reason": { "type": "string" },
+        "type": { "type": "string", "enum": ["suspension", "deletion", "owner_request"] },
+        "status": { "type": "string", "enum": ["pending", "resolved", "rejected"] },
+        "adminNote": { "type": "string" },
+        "restaurantAddress": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "ownerEmail", "reason", "type", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users": {
+      "schema": "User",
+      "description": "Collection of user profiles"
+    },
+    "orders": {
+      "schema": "Order",
+      "description": "Collection of user orders"
+    },
+    "reviews": {
+      "schema": "Review",
+      "description": "Collection of restaurant reviews"
+    },
+    "restaurants": {
+      "schema": "Restaurant",
+      "description": "Collection of restaurants"
+    },
+    "restaurants/{restaurantId}/menu": {
+      "schema": "MenuItem",
+      "description": "Subcollection of menu items for a restaurant"
+    },
+    "appeals": {
+      "schema": "Appeal",
+      "description": "Collection of user/owner appeals and requests"
+    }
+  }
+}

@@ -1,0 +1,189 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isAdmin', false) == true;
+    }
+
+    function isRestaurantOwner() {
+      return isSignedIn() &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isRestaurantOwner', false) == true;
+    }
+
+    // ── Users ─────────────────────────────────────────────────────────────────
+    // FIX #3: Admins can now update any user document (needed for purge/delete
+    //         restaurant batch that revokes owner status).
+
+    match /users/{userId} {
+      function isValidUser(data) {
+        return data.uid == request.auth.uid &&
+               data.email is string &&
+               data.name is string &&
+               data.name.size() > 0 &&
+               data.name.size() <= 100;
+      }
+
+      allow get: if isOwner(userId) || isAdmin();
+
+      allow create: if isOwner(userId) &&
+                       isValidUser(request.resource.data) &&
+                       (!('isAdmin' in request.resource.data) || request.resource.data.isAdmin == false);
+
+      // Admins get unrestricted update (needed for restaurant purge batch write).
+      // Regular owners can only touch allowed fields and cannot self-elevate to admin.
+      allow update: if isAdmin()
+                    || (isOwner(userId) &&
+                        isValidUser(request.resource.data) &&
+                        request.resource.data.diff(resource.data).affectedKeys()
+                          .hasOnly(['name','deliveryAddress','pincode','createdAt',
+                                    'isAdmin','isRestaurantOwner','restaurantId','uid','email']) &&
+                        request.resource.data.get('isAdmin', false) == resource.data.get('isAdmin', false));
+    }
+
+    // ── Restaurants ───────────────────────────────────────────────────────────
+
+    match /restaurants/{restaurantId} {
+      function isValidRestaurant(data) {
+        return data.name is string &&
+               data.name.size() <= 100 &&
+               data.ownerId == request.auth.uid;
+      }
+
+      allow read: if true;
+      allow create: if isSignedIn() && isValidRestaurant(request.resource.data);
+      allow update: if isAdmin() ||
+                       (isSignedIn() && resource.data.ownerId == request.auth.uid);
+      allow delete: if isAdmin() ||
+                       (isSignedIn() && resource.data.ownerId == request.auth.uid);
+
+      // Menu Subcollection
+      // FIX #5: Removed the extra isRestaurantOwner() pre-check — the get() already
+      //         proves ownership directly, and the double check caused silent failures.
+      match /menu/{itemId} {
+        allow read: if true;
+        allow write: if isAdmin() ||
+                        (isSignedIn() &&
+                         get(/databases/$(database)/documents/restaurants/$(restaurantId)).data.ownerId == request.auth.uid);
+      }
+    }
+
+    // Global Menu Search (Collection Group)
+    match /{path=**}/menu/{itemId} {
+      allow read: if true;
+    }
+
+    // ── Orders ────────────────────────────────────────────────────────────────
+    // FIX #4: `resource.data` is NOT available on list queries in Firestore rules.
+    //         Using it on `allow list` silently denies every query, which is why
+    //         orders never appeared in the restaurant dashboard.
+    //         Solution: allow list for any signed-in user and rely on the
+    //         Firestore query constraints (where clauses) for data scoping.
+    //         The `get` rule still enforces per-document access strictly.
+
+    match /orders/{orderId} {
+      function isValidOrder(data) {
+        return isSignedIn() &&
+               data.userId == request.auth.uid &&
+               data.total is number &&
+               data.total > 0 &&
+               data.status in ['pending','confirmed','preparing',
+                               'out-for-delivery','delivered','cancelled'] &&
+               data.items is list;
+      }
+
+      // Any signed-in user can run a query; Firestore query constraints
+      // (where userId==, where restaurantOwnerId==) enforce what they actually see.
+      allow list: if isAdmin() || (isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.restaurantOwnerId == request.auth.uid
+      ));
+
+      // Per-document read is still strictly checked.
+      // FIX: Use direct restaurant ownership check to avoid issues with missing restaurantId in user profile.
+      allow get: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        isAdmin() ||
+        (isSignedIn() && 
+         get(/databases/$(database)/documents/restaurants/$(resource.data.restaurantId)).data.ownerId == request.auth.uid)
+      );
+
+      allow create: if isSignedIn() && isValidOrder(request.resource.data);
+
+      allow update: if isOwner(resource.data.userId) ||
+                       isAdmin() ||
+                       (isSignedIn() &&
+                        get(/databases/$(database)/documents/restaurants/$(resource.data.restaurantId)).data.ownerId == request.auth.uid);
+    }
+
+    // ── Reviews ───────────────────────────────────────────────────────────────
+
+    match /reviews/{reviewId} {
+      function isValidReview(data) {
+        return isSignedIn() &&
+               data.userId == request.auth.uid &&
+               data.rating is number && data.rating >= 1 && data.rating <= 5 &&
+               data.comment is string &&
+               data.restaurantId is string &&
+               data.orderId is string;
+      }
+
+      allow read: if true;
+      allow create: if isSignedIn() && isValidReview(request.resource.data);
+      allow update: if isOwner(resource.data.userId) || isAdmin();
+      allow delete: if isOwner(resource.data.userId) || isAdmin();
+    }
+
+    // ── Coupons ───────────────────────────────────────────────────────────────
+
+    match /coupons/{couponId} {
+      function isValidCoupon(data) {
+        return data.code is string && data.code.size() <= 20 &&
+               data.discountPercent is number &&
+               data.discountPercent >= 0 && data.discountPercent <= 100 &&
+               data.isActive is bool;
+      }
+
+      allow get, list: if isSignedIn();
+      allow create, update: if isAdmin() && isValidCoupon(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // ── Appeals ───────────────────────────────────────────────────────────────
+    // FIX #2: Removed the `isRestaurantOwner()` pre-check on create.
+    //         isValidAppeal() already proves `ownerId == request.auth.uid`, so
+    //         the extra get() was causing silent failures when auth tokens were
+    //         not yet fully propagated in production.
+
+    match /appeals/{appealId} {
+      function isValidAppeal(data) {
+        return isSignedIn() &&
+               data.restaurantName is string &&
+               data.ownerEmail is string &&
+               data.ownerId == request.auth.uid &&
+               data.reason is string && data.reason.size() <= 2000 &&
+               data.type in ['suspension', 'deletion', 'owner_request'] &&
+               data.status == 'pending' &&
+               (!('restaurantId' in data) || data.restaurantId is string);
+      }
+
+      allow list, get: if isAdmin() ||
+                          (isSignedIn() && resource.data.ownerId == request.auth.uid);
+      allow create: if isSignedIn() && isValidAppeal(request.resource.data);
+      allow update, delete: if isAdmin();
+    }
+  }
+}
