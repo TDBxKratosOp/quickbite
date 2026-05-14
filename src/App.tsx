@@ -1,8 +1,3 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
@@ -44,18 +39,13 @@ const AppContent = () => {
   );
 
   useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    document.documentElement.classList.toggle('dark', theme === 'dark');
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
-  };
+  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
+  // ✅ Always show loader while auth is resolving (covers Google redirect return)
   if (loading) {
     return (
       <div className="min-h-screen bg-[var(--bg)] dark:bg-zinc-950 flex items-center justify-center transition-colors duration-300">
@@ -72,23 +62,24 @@ const AppContent = () => {
   }
 
   return (
-    <Router>
-      <div className="min-h-screen bg-[var(--bg)] dark:bg-zinc-950 text-zinc-900 dark:text-white transition-colors duration-300">
-        <Navbar theme={theme} toggleTheme={toggleTheme} />
-        <main className="pt-16 pb-12">
-          <RoutesWithTransition />
-        </main>
-      </div>
-    </Router>
+    <div className="min-h-screen bg-[var(--bg)] dark:bg-zinc-950 text-zinc-900 dark:text-white transition-colors duration-300">
+      <Navbar theme={theme} toggleTheme={toggleTheme} />
+      <main className="pt-16 pb-12">
+        <RoutesWithTransition />
+      </main>
+    </div>
   );
 };
 
 export default function App() {
   return (
-    <AuthProvider>
-      <CartProvider>
-        <AppContent />
-      </CartProvider>
-    </AuthProvider>
+    // ✅ Router moved to the outermost level, wraps everything including Login
+    <Router>
+      <AuthProvider>
+        <CartProvider>
+          <AppContent />
+        </CartProvider>
+      </AuthProvider>
+    </Router>
   );
 }
