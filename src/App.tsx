@@ -11,7 +11,7 @@ import Admin from './pages/Admin';
 import RestaurantDashboard from './pages/RestaurantDashboard';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
-import { motion, AnimatePresence } from 'motion/react';
+import { AnimatePresence } from 'motion/react';
 import PageTransition from './components/PageTransition';
 
 const RoutesWithTransition = () => {
@@ -45,10 +45,9 @@ const AppContent = () => {
 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
-  // ✅ Always show loader while auth is resolving (covers Google redirect return)
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--bg)] dark:bg-zinc-950 flex items-center justify-center transition-colors duration-300">
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
         <div className="animate-pulse flex flex-col items-center">
           <div className="w-16 h-16 bg-zinc-900 dark:bg-white rounded-2xl mb-4" />
           <div className="h-4 bg-zinc-100 dark:bg-zinc-900 w-32 rounded" />
@@ -62,7 +61,7 @@ const AppContent = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] dark:bg-zinc-950 text-zinc-900 dark:text-white transition-colors duration-300">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-white transition-colors duration-300">
       <Navbar theme={theme} toggleTheme={toggleTheme} />
       <main className="pt-16 pb-12">
         <RoutesWithTransition />
@@ -73,7 +72,6 @@ const AppContent = () => {
 
 export default function App() {
   return (
-    // ✅ Router moved to the outermost level, wraps everything including Login
     <Router>
       <AuthProvider>
         <CartProvider>
