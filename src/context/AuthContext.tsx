@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth } from '../lib/firebase';
-import { 
-  User, 
-  onAuthStateChanged, 
-  GoogleAuthProvider, 
+
+import {
+  User,
+  onAuthStateChanged,
+  GoogleAuthProvider,
   signInWithRedirect,
   getRedirectResult,
   signOut,
@@ -35,7 +36,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{
+  children: React.ReactNode;
+}> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -43,70 +46,90 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let profileUnsubscribe: (() => void) | null = null;
 
-    const authUnsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-
-      if (profileUnsubscribe) {
-        profileUnsubscribe();
-        profileUnsubscribe = null;
-      }
-
-      if (user) {
-        try {
-          // Check if user profile exists
-          const userProfile = await userService.getUserProfile(user.uid);
-
-          // Create profile if missing
-          if (!userProfile) {
-            const initialProfile: UserProfile = {
-              uid: user.uid,
-              name: user.displayName || 'New User',
-              email: user.email || '',
-              createdAt: new Date().toISOString()
-            };
-
-            await userService.saveUserProfile(initialProfile);
-          }
-
-          // Real-time profile listener
-          profileUnsubscribe = onSnapshot(
-            doc(db, 'users', user.uid),
-            (docSnap) => {
-              if (docSnap.exists()) {
-                setProfile(docSnap.data() as UserProfile);
-              }
-              setLoading(false);
-            },
-            (error) => {
-              console.error('Profile listen error:', error);
-              setLoading(false);
-            }
+    // ✅ MUST run immediately when app loads
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (result?.user) {
+          console.log(
+            'Google redirect login success:',
+            result.user.email
           );
-        } catch (error) {
-          console.error('User profile setup error:', error);
+        }
+      })
+      .catch((error) => {
+        console.error(
+          'Redirect error:',
+          error.code,
+          error.message
+        );
+      });
+
+    const authUnsubscribe = onAuthStateChanged(
+      auth,
+      async (user) => {
+        setUser(user);
+
+        // Cleanup old listener
+        if (profileUnsubscribe) {
+          profileUnsubscribe();
+          profileUnsubscribe = null;
+        }
+
+        if (user) {
+          try {
+            // Check if profile exists
+            const userProfile =
+              await userService.getUserProfile(user.uid);
+
+            // Create profile if missing
+            if (!userProfile) {
+              const initialProfile: UserProfile = {
+                uid: user.uid,
+                name: user.displayName || 'New User',
+                email: user.email || '',
+                createdAt: new Date().toISOString()
+              };
+
+              await userService.saveUserProfile(
+                initialProfile
+              );
+            }
+
+            // Real-time Firestore listener
+            profileUnsubscribe = onSnapshot(
+              doc(db, 'users', user.uid),
+              (docSnap) => {
+                if (docSnap.exists()) {
+                  setProfile(
+                    docSnap.data() as UserProfile
+                  );
+                }
+
+                setLoading(false);
+              },
+              (error) => {
+                console.error(
+                  'Profile listen error:',
+                  error
+                );
+
+                setLoading(false);
+              }
+            );
+          } catch (error) {
+            console.error(
+              'User profile setup error:',
+              error
+            );
+
+            setLoading(false);
+          }
+        } else {
+          setProfile(null);
           setLoading(false);
         }
-      } else {
-        // Handle redirect result after Google sign-in
-        getRedirectResult(auth)
-          .then(async (result) => {
-            if (result?.user) {
-              console.log('Google redirect login successful');
-              // onAuthStateChanged will automatically trigger again
-            }
-          })
-          .catch((error) => {
-            console.error(
-              'Redirect result error:',
-              error.code,
-              error.message
-            );
-          });
-
-        setProfile(null);
-        setLoading(false);
       }
-    });
+    );
 
     return () => {
       authUnsubscribe();
@@ -126,15 +149,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       await signInWithRedirect(auth, provider);
-
-      // Browser redirects to Google login page
     } catch (error) {
-      console.error('Google login redirect error:', error);
+      console.error(
+        'Google redirect login error:',
+        error
+      );
     }
   };
 
-  const loginWithEmail = async (email: string, pass: string) => {
-    await signInWithEmailAndPassword(auth, email, pass);
+  const loginWithEmail = async (
+    email: string,
+    pass: string
+  ) => {
+    await signInWithEmailAndPassword(
+      auth,
+      email,
+      pass
+    );
   };
 
   const registerWithEmail = async (
@@ -143,7 +174,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     name: string,
     accountType: 'customer' | 'owner' = 'customer'
   ) => {
-    const res = await createUserWithEmailAndPassword(auth, email, pass);
+    const res =
+      await createUserWithEmailAndPassword(
+        auth,
+        email,
+        pass
+      );
 
     await updateProfile(res.user, {
       displayName: name
@@ -158,10 +194,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     await userService.saveUserProfile(userProfile);
+
     setProfile(userProfile);
   };
 
-  const updateProfileState = (newProfile: UserProfile) => {
+  const updateProfileState = (
+    newProfile: UserProfile
+  ) => {
     setProfile(newProfile);
   };
 
@@ -191,7 +230,9 @@ export const useAuth = () => {
   const context = useContext(AuthContext);
 
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error(
+      'useAuth must be used within an AuthProvider'
+    );
   }
 
   return context;
