@@ -32,7 +32,7 @@ A modern full-stack food delivery web app built with React, Firebase, and Razorp
 
 ---
 
-## 👨‍💻 Author
+## 👨‍💻 Author -
 
 **Shubham Navle**
 - GitHub: [@SHUBHAM-NAVLE](https://github.com/TDBxKratosOp)
